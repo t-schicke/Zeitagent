@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ambiente Zaunbau – Zeitagent</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  :root{
+    --bg:#0c1410; --bg2:#0f1a14;
+    --panel:rgba(20,38,28,.72); --panel2:rgba(28,52,38,.66); --glass:rgba(255,255,255,.04);
+    --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.14);
+    --txt:#eaf6ee; --muted:#9bb6a3;
+    --accent:#22c55e; --accent2:#16a34a; --accent3:#a3e635;
+    --grad:linear-gradient(135deg,#15803d 0%,#22c55e 55%,#84cc16 100%);
+    --grad-soft:linear-gradient(135deg,rgba(34,197,94,.20),rgba(132,204,22,.12));
+    --gruen:#34d399; --gelb:#fbbf24; --rot:#fb7185; --neutral:#7c89ad;
+    --radius:14px; --shadow:0 10px 30px -12px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--txt);font-size:15px;line-height:1.5;
+    background:
+      radial-gradient(1100px 520px at 12% -8%,rgba(34,197,94,.22),transparent 60%),
+      radial-gradient(900px 500px at 100% 0%,rgba(132,204,22,.16),transparent 55%),
+      radial-gradient(800px 600px at 50% 120%,rgba(245,158,11,.10),transparent 60%),
+      linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+    background-attachment:fixed;min-height:100vh}
+  header{padding:16px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    background:linear-gradient(180deg,rgba(12,30,18,.85),rgba(12,30,18,.55));
+    backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  header .logo{width:38px;height:38px;border-radius:11px;background:var(--grad);display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:18px;color:#fff;box-shadow:0 6px 18px -4px rgba(22,163,74,.55)}
+  header h1{font-size:18.5px;margin:0;font-weight:700;letter-spacing:-.2px;
+    background:linear-gradient(90deg,#fff,#bbf7d0);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  header .sub{color:var(--muted);font-size:12.5px}
+  .grow{flex:1}
+  .badge{font-size:11.5px;padding:4px 11px;border-radius:20px;background:var(--glass);color:var(--muted);border:1px solid var(--line)}
+  .badge.ok{color:#062e22;background:var(--gruen);border-color:transparent;font-weight:600}
+  .tabs{display:flex;gap:6px;padding:12px 18px 0;flex-wrap:wrap;max-width:1180px;margin:0 auto}
+  .tab{padding:9px 16px;cursor:pointer;color:var(--muted);border-radius:10px;font-size:13.5px;font-weight:500;user-select:none;
+    border:1px solid transparent;transition:.18s}
+  .tab:hover{color:var(--txt);background:var(--glass)}
+  .tab.active{color:#fff;background:var(--grad);border-color:transparent;box-shadow:0 6px 16px -6px rgba(22,163,74,.55)}
+  main{padding:18px 22px 40px;max-width:1180px;margin:0 auto}
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:18px;
+    backdrop-filter:blur(12px);box-shadow:var(--shadow)}
+  .panel h2{margin:0 0 4px;font-size:16px;font-weight:700;letter-spacing:-.2px}
+  .panel .hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+  /* Chat / Erfassung */
+  #chat{height:340px;overflow-y:auto;background:linear-gradient(180deg,rgba(7,11,26,.55),rgba(7,11,26,.30));
+    border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+  .msg{margin-bottom:11px;display:flex}
+  .msg .bubble{padding:10px 14px;border-radius:14px;max-width:78%;white-space:pre-wrap;font-size:14px;box-shadow:0 4px 14px -8px rgba(0,0,0,.5)}
+  .msg.user{justify-content:flex-end}
+  .msg.user .bubble{background:var(--grad);color:#fff;border-bottom-right-radius:4px}
+  .msg.bot .bubble{background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.sys .bubble{background:transparent;color:var(--muted);font-size:12.5px;border:1px dashed var(--line2)}
+  .inputrow{display:flex;gap:8px;align-items:flex-end}
+  textarea#entry{flex:1;background:rgba(7,11,26,.5);color:var(--txt);border:1px solid var(--line2);border-radius:11px;
+    padding:12px;font-family:inherit;font-size:14px;resize:none;min-height:48px;transition:.18s}
+  textarea#entry:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(34,197,94,.22)}
+  button{background:var(--grad);color:#fff;border:none;border-radius:11px;padding:12px 18px;font-size:14px;
+    cursor:pointer;font-weight:600;transition:.18s;box-shadow:0 6px 18px -8px rgba(22,163,74,.55)}
+  button:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  button.ghost{background:var(--glass);color:var(--txt);border:1px solid var(--line2);box-shadow:none}
+  button.ghost:hover{background:rgba(255,255,255,.09);filter:none}
+  button.mic{width:50px;padding:12px 0;font-size:18px}
+  button.mic.rec{background:var(--rot);animation:pulse 1.2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(251,113,133,.55)}70%{box-shadow:0 0 0 12px rgba(251,113,133,0)}100%{box-shadow:0 0 0 0 rgba(251,113,133,0)}}
+  .quick{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .quick button{font-size:12px;padding:7px 12px;background:var(--glass);color:var(--muted);border:1px solid var(--line);box-shadow:none}
+  .quick button:hover{color:#fff;border-color:var(--accent);background:var(--grad-soft);transform:none;filter:none}
+  /* Stat cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px}
+  .card{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;
+    backdrop-filter:blur(12px);box-shadow:var(--shadow)}
+  .card::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--grad)}
+  .card:nth-child(3)::before{background:#6366f1}.card:nth-child(4)::before{background:var(--gruen)}
+  .card:nth-child(5)::before{background:var(--gelb)}.card:nth-child(6)::before{background:var(--rot)}
+  .card .k{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .card .v{font-size:25px;font-weight:800;margin-top:5px;letter-spacing:-.5px}
+  .card .v small{font-size:12px;color:var(--muted);font-weight:500}
+  /* Table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none}
+  th:hover{color:var(--txt)}
+  tbody tr{transition:.12s}
+  tr:hover td{background:var(--glass)}
+  .amp{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle;box-shadow:0 0 8px currentColor}
+  .a-GRUEN,.a-GRÜN{background:var(--gruen);color:var(--gruen)} .a-GELB{background:var(--gelb);color:var(--gelb)}
+  .a-ROT{background:var(--rot);color:var(--rot)} .a-NEUTRAL{background:var(--neutral);color:var(--neutral)}
+  .pill{font-size:11px;padding:2px 9px;border-radius:20px;background:var(--grad-soft);border:1px solid var(--line2);color:#bbf7d0}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  select,input[type=month]{background:rgba(7,11,26,.5);color:var(--txt);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit}
+  select:focus,input[type=month]:focus{outline:none;border-color:var(--accent)}
+  .chartgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px}
+  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;backdrop-filter:blur(12px);box-shadow:var(--shadow)}
+  .chartbox h3{margin:0 0 12px;font-size:13.5px;font-weight:700}
+  .chartbox canvas{max-height:260px}
+  .empty{color:var(--muted);text-align:center;padding:40px 0;font-size:14px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.row2{grid-template-columns:1fr}.tab{padding:8px 11px;font-size:13px}}
+  .legend{font-size:12px;color:var(--muted);margin-top:6px}
+  .massnahme{background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:13px 15px;margin-bottom:11px;
+    backdrop-filter:blur(8px);transition:.18s}
+  .massnahme:hover{transform:translateX(2px);border-color:var(--line2)}
+  .massnahme .t{font-weight:700;font-size:14px}
+  .massnahme .m{font-size:13px;color:var(--txt);margin-top:4px}
+  .massnahme .meta{font-size:11.5px;color:var(--muted);margin-top:7px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .massnahme .meta select{padding:3px 7px;font-size:11.5px;border-radius:7px}
+  .border-rot{border-left-color:var(--rot)} .border-gelb{border-left-color:var(--gelb)} .border-gruen{border-left-color:var(--gruen)}
+  a.dl{color:var(--accent3);font-size:13px;text-decoration:none;font-weight:500} a.dl:hover{text-decoration:underline}
+  .kommentar{font-size:12px;color:var(--muted)}
+  .notice{font-size:12.5px;color:var(--muted);background:var(--glass);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+  #rawTable select{padding:4px 7px;font-size:12px;border-radius:7px}
+  #rawTable span[contenteditable]{border-bottom:1px dotted var(--line2);outline:none;cursor:text}
+  #rawTable span[contenteditable]:focus{border-bottom-color:var(--accent)}
+  .speakctl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
+  .speakctl input{accent-color:var(--accent)}
+  /* Sync-Modal */
+  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center}
+  .modal-backdrop.open{display:flex}
+  .modal{background:var(--bg2);border:1px solid var(--line2);border-radius:18px;padding:28px 26px;max-width:420px;width:90%;box-shadow:0 24px 60px -12px rgba(0,0,0,.7)}
+  .modal h2{margin:0 0 6px;font-size:18px;font-weight:700}
+  .modal .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+  .sync-code{font-size:36px;font-weight:800;letter-spacing:8px;text-align:center;padding:18px;
+    background:var(--glass);border-radius:12px;border:1px solid var(--line2);color:var(--accent3);
+    cursor:pointer;user-select:all;margin-bottom:6px}
+  .sync-hint{font-size:12px;color:var(--muted);text-align:center;margin-bottom:18px}
+  .modal .row{display:flex;gap:8px;margin-bottom:10px}
+  .modal input[type=text]{flex:1;background:rgba(7,11,26,.5);color:var(--txt);border:1px solid var(--line2);
+    border-radius:10px;padding:11px 14px;font-size:16px;font-family:inherit;letter-spacing:3px}
+  .modal input[type=text]:focus{outline:none;border-color:var(--accent)}
+  .modal .close{background:var(--glass);color:var(--muted);border:1px solid var(--line);margin-top:4px;width:100%}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">AZ</div>
+  <div>
+    <h1>Ambiente Zaunbau – Zeitagent</h1>
+    <div class="sub">Für Tanja Schicke · Tätigkeitserfassung · Rollenanalyse · Maßnahmen</div>
+  </div>
+  <div class="grow"></div>
+  <label class="speakctl"><input type="checkbox" id="speakToggle"> Sprachausgabe</label>
+  <span class="badge" id="storeBadge">Speicher: localStorage</span>
+  <button class="ghost" id="openSyncModal">📱 Handy-Sync</button>
+  <button class="ghost" id="connectFolder">Projektordner verbinden</button>
+</header>
+
+<!-- SYNC MODAL -->
+<div class="modal-backdrop" id="syncModal">
+  <div class="modal">
+    <h2>📱 Handy-Sync</h2>
+    <p class="sub">Übertrage deine Zeitdaten auf jedes Gerät — ohne Cloud-Account.</p>
+
+    <div id="syncSendSection">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Schritt 1: QR-Code erzeugen (am Desktop)</p>
+      <button id="syncSendBtn" style="width:100%;margin-bottom:12px">🔼 Daten hochladen &amp; QR-Code erzeugen</button>
+      <div id="syncQrWrap" style="display:none;text-align:center;margin-bottom:8px">
+        <div id="syncQrCode" style="display:inline-block;background:#fff;padding:10px;border-radius:10px"></div>
+        <div class="sync-hint" style="margin-top:6px" id="syncCodeHint">→ QR-Code mit Handy-Kamera scannen</div>
+        <div class="sync-code" id="syncCodeDisplay" title="Tippe zum Kopieren" style="font-size:14px;letter-spacing:2px;margin-top:8px">––</div>
+        <div style="font-size:11px;color:var(--muted)">oder ID oben manuell auf dem Handy eingeben</div>
+      </div>
+    </div>
+
+    <div id="syncReceiveSection" style="border-top:1px solid var(--line);padding-top:16px;margin-top:8px">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Schritt 2: Auf dem Handy – ID eingeben &amp; laden</p>
+      <div class="row">
+        <input type="text" id="syncCodeInput" placeholder="Blob-ID einfügen …" style="letter-spacing:1px">
+        <button id="syncReceiveBtn">🔽 Laden</button>
+      </div>
+      <div id="syncStatus" style="font-size:12.5px;color:var(--muted);min-height:18px"></div>
+    </div>
+
+    <button class="ghost close" id="syncModalClose">Schließen</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-view="erfassung">Erfassung</div>
+  <div class="tab" data-view="auswertung">Auswertung</div>
+  <div class="tab" data-view="taetigkeiten">Tätigkeiten</div>
+  <div class="tab" data-view="massnahmen">Maßnahmen</div>
+  <div class="tab" data-view="charts">Charts</div>
+  <div class="tab" data-view="rohdaten">Rohdaten</div>
+</div>
+
+<main>
+  <!-- ERFASSUNG -->
+  <div class="view active" id="view-erfassung">
+    <div class="panel">
+      <h2>Erfassung</h2>
+      <p class="hint">Frei formulieren — per Text oder Sprache. Beispiel: „Angebote erstellt, ca. zwei Stunden, Fachkraft.“ Fehlt Zeit oder Kategorie, wird gezielt nachgefragt. Datum = heute (oder im Text nennen).</p>
+      <div id="chat"></div>
+      <div class="inputrow">
+        <button class="mic" id="micBtn" title="Spracheingabe (de-DE)">🎤</button>
+        <textarea id="entry" placeholder="Tätigkeit, Zeitspanne, Kategorie …  (Enter = senden)"></textarea>
+        <button id="sendBtn">Senden</button>
+      </div>
+      <div class="quick">
+        <button data-q="Monatsauswertung als Excel">⤓ Monatsauswertung Excel</button>
+        <button data-q="Excel und Charts herunterladen">⤓ Excel + Charts</button>
+        <button data-q="Top-Zeitfresser anzeigen">Top-Zeitfresser</button>
+        <button data-q="Fehlallokations-Report">Fehlallokation</button>
+        <button data-q="Maßnahmenliste erzeugen">Maßnahmen</button>
+        <button data-q="Wochenauswertung">Wochenauswertung</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUSWERTUNG -->
+  <div class="view" id="view-auswertung">
+    <div class="toolbar">
+      <label class="sub" style="color:var(--muted)">Monat:</label>
+      <input type="month" id="monthSel">
+      <div class="grow"></div>
+      <button class="ghost" id="exportXlsx">⤓ Excel-Report</button>
+      <button class="ghost" id="exportZip">⤓ Charts-ZIP</button>
+    </div>
+    <div class="cards" id="statCards"></div>
+    <div class="panel">
+      <h2>Kategorie-Ampel (Monat)</h2>
+      <p class="hint">Anteil an Gesamtzeit des Monats. Schwellen gemäß Vorgabe.</p>
+      <table id="ampelTable"><thead><tr><th>Kategorie</th><th>Stunden</th><th>Anteil %</th><th>Δ Vormonat</th><th>Ampel</th><th>Kommentar</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="panel">
+      <h2>Wochenübersicht</h2>
+      <table id="weekTable"><thead><tr><th>KW</th><th>Kategorie</th><th>Stunden</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <!-- TÄTIGKEITEN -->
+  <div class="view" id="view-taetigkeiten">
+    <div class="toolbar">
+      <span class="sub" style="color:var(--muted)">Cluster-Auswertung des gewählten Monats</span>
+    </div>
+    <div class="panel">
+      <h2>Tätigkeiten (Cluster)</h2>
+      <table id="clusterTable"><thead><tr>
+        <th data-s="taetigkeit">Tätigkeit</th><th data-s="kategorie">Kategorie</th>
+        <th data-s="stunden">Std</th><th data-s="anteil">Anteil %</th>
+        <th data-s="del">Del.</th><th data-s="auto">Auto.</th><th data-s="hebel">Hebel</th>
+        <th data-s="ampel">Ampel</th><th data-s="rang">Rang</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <!-- MASSNAHMEN -->
+  <div class="view" id="view-massnahmen">
+    <div class="panel">
+      <h2>Fehlallokation & Maßnahmen</h2>
+      <p class="hint">Priorisierung: Hilfskraft → Fachkraft → Management → Unternehmerisch. Innerhalb: Ampel (Rot vor Gelb), Zeitaufwand, Delegier-/Automatisierbarkeit.</p>
+      <div id="massnahmenList"></div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="view" id="view-charts">
+    <div class="toolbar"><div class="grow"></div><button class="ghost" id="exportZip2">⤓ Alle Charts als ZIP (PNG)</button></div>
+    <div class="chartgrid">
+      <div class="chartbox"><h3>Kategorie-Anteile</h3><canvas id="cKat"></canvas></div>
+      <div class="chartbox"><h3>Top-10 Tätigkeiten nach Stunden</h3><canvas id="cTop"></canvas></div>
+      <div class="chartbox"><h3>Kategorie-Mix nach Woche (gestapelt)</h3><canvas id="cMix"></canvas></div>
+      <div class="chartbox"><h3>Pareto der Tätigkeiten</h3><canvas id="cPareto"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROHDATEN -->
+  <div class="view" id="view-rohdaten">
+    <div class="toolbar">
+      <span class="sub" style="color:var(--muted)">Alle Einträge (alle Monate)</span>
+      <div class="grow"></div>
+      <button class="ghost" id="importJson">JSON importieren</button>
+      <button class="ghost" id="exportJson">JSON exportieren</button>
+      <input type="file" id="fileInput" accept=".json" style="display:none">
+    </div>
+    <div class="panel">
+      <table id="rawTable"><thead><tr>
+        <th>Datum</th><th>Tätigkeit</th><th>Kategorie</th><th>Min</th><th>Std</th>
+        <th>Del.</th><th>Auto.</th><th>Hebel</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   UnternehmerZeit-Agent — regelbasiert, offline
+   ============================================================ */
+
+const KAT = {
+  PRIVAT:'Privat',
+  MGMT:'Geschäftsführung / Management',
+  UNTERNEHMER:'Unternehmerisch',
+  VERTRIEB:'Vertrieb',
+  FACH:'Fachkrafttätigkeit',
+  HILF:'Hilfskrafttätigkeit'
+};
+const HEBEL = ['Delegieren','Eliminieren','Automatisieren','Standardisieren','Beibehalten'];
+
+/* --- Cluster-Definitionen: kanonischer Name + Synonyme + Defaults --- */
+const CLUSTERS = [
+  {name:'E-Mail-Kommunikation', kat:KAT.HILF, del:1, auto:1, hebel:'Automatisieren',
+   kw:['mail','mails','e-mail','email','postfach','inbox','anschreiben beantwort']},
+  {name:'Terminorganisation', kat:KAT.HILF, del:1, auto:1, hebel:'Automatisieren',
+   kw:['termin','kalender','koordinier','terminieren','meeting plan']},
+  {name:'Belegsuche / Ablage', kat:KAT.HILF, del:1, auto:1, hebel:'Eliminieren',
+   kw:['beleg','ablage','dokument such','datei such','suchen','archiv','scann']},
+  {name:'Datenpflege / Erfassung', kat:KAT.HILF, del:1, auto:1, hebel:'Automatisieren',
+   kw:['daten erfass','daten pfleg','liste pfleg','excel pfleg','eingabe','tippen']},
+  {name:'Reise- / Logistikorganisation', kat:KAT.HILF, del:1, auto:0, hebel:'Delegieren',
+   kw:['reise','buchung','hotel','flug','logistik organis']},
+  {name:'Angebote erstellen', kat:KAT.FACH, del:1, auto:0, hebel:'Delegieren',
+   kw:['angebot']},
+  {name:'Technische Klärung mit Kunde', kat:KAT.FACH, del:1, auto:0, hebel:'Delegieren',
+   kw:['technische klär','technik mit kunde','rückfrage technik','spezifikation klär']},
+  {name:'Operative Problemlösung Produktion', kat:KAT.FACH, del:1, auto:0, hebel:'Standardisieren',
+   kw:['produktion','operativ','störung','problem lös','reparat','nacharbeit produktion']},
+  {name:'Sachbearbeitung / Rechnungen', kat:KAT.FACH, del:1, auto:1, hebel:'Delegieren',
+   kw:['rechnung','sachbearbeit','buchhalt','mahnung','kalkulation']},
+  {name:'Kundenbetreuung operativ', kat:KAT.FACH, del:1, auto:0, hebel:'Delegieren',
+   kw:['kundenbetreu','support','reklamation bearbeit','kundenanfrage']},
+  {name:'Team-Weekly / Führung', kat:KAT.MGMT, del:0, auto:0, hebel:'Standardisieren',
+   kw:['team-weekly','weekly','team meeting','führung','jour fixe','daily']},
+  {name:'Mitarbeitergespräche', kat:KAT.MGMT, del:0, auto:0, hebel:'Standardisieren',
+   kw:['mitarbeitergespräch','1:1','feedbackgespräch','personalgespräch']},
+  {name:'Kennzahlenreview / Steuerung', kat:KAT.MGMT, del:0, auto:1, hebel:'Standardisieren',
+   kw:['kennzahl','kpi','controlling','steuerung','reporting review','zahlen review']},
+  {name:'Entscheidungen / Freigaben', kat:KAT.MGMT, del:0, auto:0, hebel:'Beibehalten',
+   kw:['entscheid','freigabe','genehmig','abnahme']},
+  {name:'Organisation / Koordination', kat:KAT.MGMT, del:0, auto:0, hebel:'Standardisieren',
+   kw:['organis','koordin','abstimmung intern','planung intern']},
+  {name:'Strategiearbeit / Roadmap', kat:KAT.UNTERNEHMER, del:0, auto:0, hebel:'Beibehalten',
+   kw:['strategie','roadmap','vision','geschäftsmodell','jahresplan']},
+  {name:'Markt & Partnerschaften', kat:KAT.UNTERNEHMER, del:0, auto:0, hebel:'Beibehalten',
+   kw:['markt','partnerschaft','netzwerk','kooperation','akquise strateg','positionier']},
+  {name:'Produkt-/Angebotsinnovation', kat:KAT.UNTERNEHMER, del:0, auto:0, hebel:'Beibehalten',
+   kw:['innovation','produktentwick','neues angebot','neues produkt','skalier']},
+  {name:'Kundengespräch / Akquise', kat:KAT.VERTRIEB, del:0, auto:0, hebel:'Beibehalten',
+   kw:['kundengespräch','kaltakquise','neukundengewinnung','kundenbesuch akquise','akquise gespräch','kundenakquise']},
+  {name:'Angebotsverfolgung / Nachfassen', kat:KAT.VERTRIEB, del:1, auto:0, hebel:'Delegieren',
+   kw:['angebotsverfolgung','nachfassen','nachfass','follow-up angebot','angebot nachfass','angebot nachhak']},
+  {name:'Auftragsabschluss / Auftragsgewinnung', kat:KAT.VERTRIEB, del:0, auto:0, hebel:'Beibehalten',
+   kw:['auftragsabschluss','auftragsgewinn','auftrag gewinn','abschluss gespräch','deal abschluss']},
+  {name:'Messe / Veranstaltung Vertrieb', kat:KAT.VERTRIEB, del:1, auto:0, hebel:'Delegieren',
+   kw:['messe vertrieb','veranstaltung vertrieb','ausstellung vertrieb','kundenevent']},
+  {name:'Privat', kat:KAT.PRIVAT, del:0, auto:0, hebel:'Beibehalten',
+   kw:['privat','pause','mittag','sport','familie','urlaub']}
+];
+
+/* Kategorie-Schlüsselwörter (explizite Nennung) */
+const KAT_KW = [
+  {kat:KAT.PRIVAT, kw:['privat']},
+  {kat:KAT.MGMT, kw:['management','geschäftsführung','geschäftsführer','gf ','führung','leitung','steuerung']},
+  {kat:KAT.UNTERNEHMER, kw:['unternehmerisch','unternehmer','strategisch','strategie','vision']},
+  {kat:KAT.VERTRIEB, kw:['vertrieb','verkauf','akquise','neukundengewinnung','kaltakquise']},
+  {kat:KAT.FACH, kw:['fachkraft','fachlich','operativ fach']},
+  {kat:KAT.HILF, kw:['hilfskraft','hilfstätigkeit','routine']}
+];
+
+const ZAHLWORT = {
+  'ein':1,'eine':1,'einen':1,'eins':1,'zwei':2,'drei':3,'vier':4,'fünf':5,'fuenf':5,
+  'sechs':6,'sieben':7,'acht':8,'neun':9,'zehn':10,'elf':11,'zwölf':12,'zwoelf':12,
+  'halbe':0.5,'viertel':0.25
+};
+
+/* ---------------- State ---------------- */
+let records = [];          // {id,datum,taetigkeit,cluster,kategorie,minuten,stunden,del,auto,hebel,vorlaeufig,quelle,konfidenz,erfasst_am}
+let pending = null;        // partial entry awaiting clarification
+let pendingQueue = [];     // weitere Segmente eines Mehrfach-Satzes
+let dirHandle = null;      // File System Access folder handle
+let charts = {};
+let inputSource = 'text';  // 'text' | 'sprache' — Quelle des aktuellen Eintrags
+let learned = [];          // gelernte Cluster-Zuordnungen [{kw, name, kat}]
+let massStatus = {};       // Maßnahmen-Status { 'YYYY-MM|Cluster': 'offen'|'umsetzung'|'erledigt' }
+let speakOut = false;      // Sprachausgabe der Rückfragen
+
+/* ---------------- Persistenz ---------------- */
+const LS_KEY = 'unternehmerzeit_records_v1';
+const LS_LEARN = 'unternehmerzeit_learned_v1';
+const LS_STATUS = 'unternehmerzeit_massstatus_v1';
+
+function saveLocal(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(records));
+    localStorage.setItem(LS_LEARN, JSON.stringify(learned));
+    localStorage.setItem(LS_STATUS, JSON.stringify(massStatus));
+  }catch(e){}
+}
+function loadLocal(){
+  try{
+    const r=localStorage.getItem(LS_KEY); if(r) records=JSON.parse(r);
+    const l=localStorage.getItem(LS_LEARN); if(l) learned=JSON.parse(l);
+    const s=localStorage.getItem(LS_STATUS); if(s) massStatus=JSON.parse(s);
+  }catch(e){}
+}
+
+async function saveAll(){
+  saveLocal();
+  if(dirHandle){
+    try{
+      const fh = await dirHandle.getFileHandle('zeitdaten.json',{create:true});
+      const w = await fh.createWritable();
+      await w.write(JSON.stringify(records,null,2));
+      await w.close();
+    }catch(e){ console.warn('Ordner-Schreiben fehlgeschlagen',e); }
+  }
+}
+
+async function connectFolder(){
+  if(!window.showDirectoryPicker){
+    alert('Dein Browser unterstützt das direkte Schreiben in den Ordner nicht.\nNutze Chrome oder Edge. Daten bleiben sonst im localStorage und sind per JSON-Export sicherbar.');
+    return;
+  }
+  try{
+    dirHandle = await window.showDirectoryPicker({mode:'readwrite'});
+    // versuche bestehende Datei zu laden
+    try{
+      const fh = await dirHandle.getFileHandle('zeitdaten.json');
+      const f = await fh.getFile(); const txt = await f.text();
+      const data = JSON.parse(txt);
+      if(Array.isArray(data) && data.length){
+        if(confirm('zeitdaten.json im Ordner gefunden ('+data.length+' Einträge). Laden und aktuelle Browser-Daten ersetzen?')){
+          records = data;
+        }
+      }
+    }catch(e){ /* keine Datei vorhanden -> wird beim ersten Speichern erstellt */ }
+    document.getElementById('storeBadge').textContent='Speicher: Projektordner ('+dirHandle.name+')';
+    document.getElementById('storeBadge').classList.add('ok');
+    await saveAll(); refreshAll();
+    botMsg('Projektordner verbunden. Daten werden jetzt in zeitdaten.json gespeichert.');
+  }catch(e){ /* abgebrochen */ }
+}
+
+/* ---------------- Parser ---------------- */
+function parseTime(text){
+  const t = text.toLowerCase().replace(',', '.');
+  // explizite Sondernamen
+  if(/anderthalb|eineinhalb/.test(t)) return 90;
+  if(/zweieinhalb/.test(t)) return 150;
+  if(/dreieinhalb/.test(t)) return 210;
+  if(/dreiviertel\s*stunde/.test(t)) return 45;
+  if(/halbe\s*stunde|eine\s*halbe/.test(t)) return 30;
+  // Minuten: "30 min", "ca. 45 minuten"
+  let m = t.match(/(\d+(?:\.\d+)?)\s*(min|minute|minuten)\b/);
+  if(m) return Math.round(parseFloat(m[1]));
+  // Stunden: "2 std", "1.5 stunden", "2h"
+  m = t.match(/(\d+(?:\.\d+)?)\s*(h|std|stunde|stunden)\b/);
+  if(m) return Math.round(parseFloat(m[1])*60);
+  // Zahlwort + Stunde/Minute
+  m = t.match(/\b([a-zäöü]+)\s*(stunde|stunden|std)\b/);
+  if(m && ZAHLWORT[m[1]]!==undefined) return Math.round(ZAHLWORT[m[1]]*60);
+  m = t.match(/\b([a-zäöü]+)\s*(minute|minuten|min)\b/);
+  if(m && ZAHLWORT[m[1]]!==undefined) return Math.round(ZAHLWORT[m[1]]);
+  // unklar
+  if(/vormittag|nachmittag|mehrere stunden|den ganzen tag|etwas zeit|ein bisschen|kurz/.test(t)) return 'UNKLAR';
+  // nackte Zahl + h/min Symbol bereits oben; sonst null
+  return null;
+}
+
+function detectKategorie(text){
+  const t = ' '+text.toLowerCase()+' ';
+  for(const k of KAT_KW){
+    for(const w of k.kw){ if(t.includes(w)) return k.kat; }
+  }
+  return null;
+}
+
+function detectCluster(text){
+  const t = text.toLowerCase();
+  let best=null, bestLen=0;
+  // gelernte Zuordnungen zuerst (höhere Priorität bei gleicher Länge)
+  for(const l of learned){
+    if(t.includes(l.kw) && l.kw.length>=bestLen){
+      best={name:l.name, kat:l.kat, del:null, auto:null, hebel:null, learned:true}; bestLen=l.kw.length;
+    }
+  }
+  for(const c of CLUSTERS){
+    for(const w of c.kw){
+      if(t.includes(w) && w.length>bestLen){ best=c; bestLen=w.length; }
+    }
+  }
+  return best;
+}
+
+/* Aus einer Korrektur ein Stichwort lernen */
+function learnCluster(rawText, clusterName, kat){
+  const t=(rawText||'').toLowerCase()
+    .replace(/[\.,]/g,' ')
+    .replace(/\b\d+(?:[.,]\d+)?\s*(min|minute|minuten|h|std|stunde|stunden)\b/gi,'')
+    .replace(/\b(ca|circa|etwa|ungefähr|ungefaehr|gestern|vorgestern|heute|management|geschäftsführung|führung|unternehmerisch|vertrieb|verkauf|akquise|fachkraft|hilfskraft|privat)\b/gi,'')
+    .replace(/\s+/g,' ').trim();
+  if(!t || t.length<3) return;
+  const kw=t.split(' ').filter(w=>w.length>=4).slice(0,2).join(' ') || t;
+  if(learned.some(l=>l.kw===kw)) { learned=learned.map(l=>l.kw===kw?{kw,name:clusterName,kat}:l); }
+  else learned.push({kw, name:clusterName, kat});
+}
+
+function detectDatum(text){
+  const t = text.toLowerCase();
+  const today = new Date();
+  if(/gestern/.test(t)){ const d=new Date(today); d.setDate(d.getDate()-1); return iso(d); }
+  if(/vorgestern/.test(t)){ const d=new Date(today); d.setDate(d.getDate()-2); return iso(d); }
+  // dd.mm.yyyy oder dd.mm.
+  let m = t.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if(m) return `${m[3]}-${pad(m[2])}-${pad(m[1])}`;
+  m = t.match(/(\d{1,2})\.(\d{1,2})\.(?!\d)/);
+  if(m) return `${today.getFullYear()}-${pad(m[2])}-${pad(m[1])}`;
+  // yyyy-mm-dd
+  m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[0];
+  return iso(today);
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+function iso(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+/* Tätigkeitsname normalisieren (max 1 Satz) */
+function normTaetigkeit(text, cluster){
+  if(cluster) return cluster.name;
+  // entferne Zeit- & Kategorieangaben grob
+  let t = text.replace(/[\.,]/g,' ')
+    .replace(/\b(ca|circa|etwa|ungefähr|ungefaehr)\b/gi,'')
+    .replace(/\b\d+(?:[.,]\d+)?\s*(min|minute|minuten|h|std|stunde|stunden)\b/gi,'')
+    .replace(/\b(anderthalb|eineinhalb|zweieinhalb|dreieinhalb|halbe stunde|dreiviertel stunde)\b/gi,'')
+    .replace(/\b(management|geschäftsführung|geschäftsführer|führung|unternehmerisch|fachkraft|hilfskraft|privat)\b/gi,'')
+    .replace(/\b(gestern|vorgestern|heute)\b/gi,'')
+    .replace(/\s+/g,' ').trim();
+  if(!t) t = 'Sonstige Tätigkeit';
+  // erstes Wort groß
+  return t.charAt(0).toUpperCase()+t.slice(1);
+}
+
+/* ---------------- Erfassungs-Flow ---------------- */
+function startEntry(text){
+  const datum = detectDatum(text);
+  const cluster = detectCluster(text);
+  let kategorie = detectKategorie(text);
+  const katExplizit = !!kategorie;
+  if(!kategorie && cluster) kategorie = cluster.kat;
+  const min = parseTime(text);
+
+  pending = {
+    raw:text, datum,
+    cluster: cluster?cluster.name:null,
+    clusterObj: cluster||null,
+    kategorie: kategorie||null,
+    katExplizit,
+    minuten: (min==='UNKLAR'||min===null)?null:min,
+    timeUnklar: (min==='UNKLAR'),
+    taetigkeit: normTaetigkeit(text, cluster),
+    quelle: inputSource
+  };
+  inputSource='text';
+  continueEntry();
+}
+
+function continueEntry(){
+  // Zeit fehlt/unklar
+  if(pending.minuten===null){
+    if(pending.timeUnklar){
+      botMsg('Die Zeitangabe ist unklar. Bitte eine konkrete Spanne nennen — z. B. „45 Minuten“ oder „1,5 Stunden“.');
+    }else{
+      botMsg('Wie lange hat das gedauert? (z. B. „30 Minuten“, „1,5 Stunden“)');
+    }
+    pending.await='zeit'; return;
+  }
+  // Kategorie fehlt
+  if(!pending.kategorie){
+    botMsg('Welche Kategorie?\n• Management (Geschäftsführung)\n• Unternehmerisch\n• Vertrieb\n• Fachkraft\n• Hilfskraft\n• Privat');
+    pending.await='kategorie'; return;
+  }
+  finalizeEntry();
+}
+
+function applyAnswer(text){
+  if(pending.await==='zeit'){
+    const min = parseTime(text);
+    if(min===null || min==='UNKLAR'){
+      botMsg('Das konnte ich nicht als Zeitspanne lesen. Bitte z. B. „30 Minuten“ oder „2 Stunden“.'); return;
+    }
+    pending.minuten=min; pending.timeUnklar=false; pending.await=null; continueEntry(); return;
+  }
+  if(pending.await==='kategorie'){
+    const k = detectKategorie(text) || mapKatLoose(text);
+    if(!k){ botMsg('Bitte eine der Kategorien wählen: Management, Unternehmerisch, Vertrieb, Fachkraft, Hilfskraft, Privat.'); return; }
+    pending.kategorie=k; pending.katExplizit=true;
+    // Cluster ggf. neu prüfen falls vorher keiner
+    if(!pending.clusterObj){
+      const c=detectCluster(pending.raw); if(c){pending.clusterObj=c;pending.cluster=c.name;pending.taetigkeit=c.name;}
+    }
+    pending.await=null; continueEntry(); return;
+  }
+}
+function mapKatLoose(text){
+  const t=text.toLowerCase().trim();
+  if(/^mgmt|^gf|manage|geschäft|führ/.test(t)) return KAT.MGMT;
+  if(/untern|strateg/.test(t)) return KAT.UNTERNEHMER;
+  if(/vertrieb|verkauf|akquise/.test(t)) return KAT.VERTRIEB;
+  if(/fach/.test(t)) return KAT.FACH;
+  if(/hilf|routine/.test(t)) return KAT.HILF;
+  if(/privat/.test(t)) return KAT.PRIVAT;
+  return null;
+}
+
+function katDefaults(kat){
+  if(kat===KAT.HILF) return {del:1,auto:1,hebel:'Eliminieren'};
+  if(kat===KAT.FACH) return {del:1,auto:0,hebel:'Delegieren'};
+  if(kat===KAT.MGMT) return {del:0,auto:0,hebel:'Standardisieren'};
+  if(kat===KAT.UNTERNEHMER) return {del:0,auto:0,hebel:'Beibehalten'};
+  if(kat===KAT.VERTRIEB) return {del:0,auto:0,hebel:'Beibehalten'};
+  return {del:0,auto:0,hebel:'Beibehalten'};
+}
+
+function finalizeEntry(){
+  const c = pending.clusterObj;
+  let del,auto,hebel,vorlaeufig=false,konfidenz;
+  if(pending.kategorie===KAT.PRIVAT){ del=0;auto=0;hebel='Beibehalten'; konfidenz=1; }
+  else if(c && c.del!==null && c.del!==undefined){ del=c.del;auto=c.auto;hebel=c.hebel; konfidenz=pending.katExplizit?1:0.8; }
+  else {
+    // gelernter Cluster ohne Hebel-Defaults oder gar kein Cluster -> Kategorie-Defaults, vorläufig
+    vorlaeufig=true; const d=katDefaults(pending.kategorie); del=d.del;auto=d.auto;hebel=d.hebel;
+    konfidenz=(c&&c.learned)?0.7:0.5;
+  }
+  const rec = {
+    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    datum: pending.datum,
+    taetigkeit: pending.taetigkeit,
+    cluster: pending.cluster || pending.taetigkeit,
+    kategorie: pending.kategorie,
+    minuten: pending.minuten,
+    stunden: Math.round(pending.minuten/60*100)/100,
+    del, auto, hebel, vorlaeufig,
+    quelle: pending.quelle || 'text',
+    konfidenz,
+    erfasst_am: new Date().toISOString()
+  };
+  records.push(rec);
+  saveAll();
+  const vlabel = vorlaeufig?' (Felder vorläufig — in „Rohdaten“ korrigierbar)':'';
+  botMsg(`Gespeichert: ${rec.datum} · ${rec.taetigkeit} · ${rec.kategorie} · ${fmtH(rec.stunden)}${vlabel}.`);
+  pending=null;
+  refreshAll();
+  drainQueue();
+}
+
+/* ---------------- Trigger ---------------- */
+function handleTrigger(text){
+  const t=text.toLowerCase();
+  if(/monatsauswertung.*excel|excel.*monat/.test(t)){ exportExcel(); return true; }
+  if(/excel und charts|excel \+ charts|excel.*charts.*herunter/.test(t)){ exportExcel(); exportChartsZip(); return true; }
+  if(/top-?zeitfresser|zeitfresser/.test(t)){ switchView('taetigkeiten'); botMsg('Top-Zeitfresser: siehe Tab „Tätigkeiten“ (nach Stunden sortiert).'); return true; }
+  if(/fehlallokation/.test(t)){ switchView('massnahmen'); botMsg('Fehlallokations-Report: siehe Tab „Maßnahmen“.'); return true; }
+  if(/maßnahmen|massnahmen/.test(t)){ switchView('massnahmen'); botMsg('Maßnahmenliste erzeugt — siehe Tab „Maßnahmen“.'); return true; }
+  if(/wochenauswertung|wochenübersicht|wochenuebersicht/.test(t)){ switchView('auswertung'); botMsg('Wochenauswertung: siehe Tab „Auswertung“.'); return true; }
+  if(/charts? herunter|charts? download|charts? als zip/.test(t)){ exportChartsZip(); return true; }
+  return false;
+}
+
+/* ---------------- Aggregation ---------------- */
+function selectedMonth(){ return document.getElementById('monthSel').value || iso(new Date()).slice(0,7); }
+function monthRecords(){ const m=selectedMonth(); return records.filter(r=>r.datum.slice(0,7)===m); }
+function prevMonthKey(m){ const [y,mo]=m.split('-').map(Number); const d=new Date(y,mo-2,1); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; }
+function prevMonthRecords(){ const pm=prevMonthKey(selectedMonth()); return records.filter(r=>r.datum.slice(0,7)===pm); }
+
+function totalHours(recs){ return recs.reduce((s,r)=>s+r.stunden,0); }
+// Bezugsbasis für Anteile: berufliche Zeit (ohne Privat). Privat bleibt neutral.
+function profHours(recs){ return recs.filter(r=>r.kategorie!==KAT.PRIVAT).reduce((s,r)=>s+r.stunden,0); }
+function anteilBasis(kat, st, total, prof){
+  return kat===KAT.PRIVAT ? round2(st/(total||1)*100) : round2(st/(prof||1)*100);
+}
+
+function byKategorie(recs){
+  const total=totalHours(recs), prof=profHours(recs); const map={};
+  recs.forEach(r=>{ map[r.kategorie]=(map[r.kategorie]||0)+r.stunden; });
+  return Object.entries(map).map(([kategorie,stunden])=>({
+    kategorie, stunden:round2(stunden), anteil:anteilBasis(kategorie,stunden,total,prof)
+  })).sort((a,b)=>b.stunden-a.stunden);
+}
+
+function byCluster(recs){
+  const total=totalHours(recs), prof=profHours(recs); const map={};
+  recs.forEach(r=>{
+    const k=r.cluster;
+    if(!map[k]) map[k]={taetigkeit:k,kategorie:r.kategorie,stunden:0,del:r.del,auto:r.auto,hebel:r.hebel,vorlaeufig:r.vorlaeufig};
+    map[k].stunden+=r.stunden;
+    // Mehrheitswerte beibehalten (einfach: erster Wert)
+  });
+  let arr=Object.values(map).map(c=>({...c,stunden:round2(c.stunden),anteil:anteilBasis(c.kategorie,c.stunden,total,prof)}));
+  arr.sort((a,b)=>b.stunden-a.stunden);
+  arr.forEach((c,i)=>{ c.rang=i+1; c.ampel=ampelTaetigkeit(c); });
+  return arr;
+}
+
+function byWoche(recs){
+  const map={};
+  recs.forEach(r=>{
+    const kw=isoWeek(r.datum);
+    const key=kw+'|'+r.kategorie;
+    map[key]=(map[key]||0)+r.stunden;
+  });
+  return Object.entries(map).map(([k,v])=>{const[kw,kat]=k.split('|');return{kw:+kw,kategorie:kat,stunden:round2(v)};})
+    .sort((a,b)=>a.kw-b.kw || a.kategorie.localeCompare(b.kategorie));
+}
+
+function isoWeek(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day);
+  const ys=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  return Math.ceil((((t-ys)/86400000)+1)/7);
+}
+function round2(n){ return Math.round(n*100)/100; }
+
+/* ---------------- Ampel-Logik ---------------- */
+function ampelKategorie(kat, anteil){
+  if(kat===KAT.PRIVAT) return 'NEUTRAL';
+  if(kat===KAT.HILF){ if(anteil<=1)return'GRÜN'; if(anteil<=5)return'GELB'; return'ROT'; }
+  if(kat===KAT.FACH){ if(anteil<=5)return'GRÜN'; if(anteil<=10)return'GELB'; return'ROT'; }
+  if(kat===KAT.UNTERNEHMER){ if(anteil>=20&&anteil<=35)return'GRÜN'; if(anteil>=10&&anteil<20)return'GELB'; return'ROT'; }
+  if(kat===KAT.MGMT){ if(anteil>=60&&anteil<=80)return'GRÜN'; if((anteil>=50&&anteil<60)||(anteil>80&&anteil<=90))return'GELB'; return'ROT'; }
+  if(kat===KAT.VERTRIEB){ if(anteil>=10&&anteil<=25)return'GRÜN'; if((anteil>=5&&anteil<10)||(anteil>25&&anteil<=35))return'GELB'; return'ROT'; }
+  return 'NEUTRAL';
+}
+function ampelTaetigkeit(c){
+  if(c.kategorie===KAT.PRIVAT) return 'NEUTRAL';
+  const isLow = (c.kategorie===KAT.HILF||c.kategorie===KAT.FACH);
+  if(isLow && c.anteil>5 && (c.del===1||c.auto===1)) return 'ROT';
+  if(isLow && c.anteil>2) return 'GELB';
+  return 'GRÜN';
+}
+function ampelKommentar(kat,ampel,anteil){
+  if(kat===KAT.PRIVAT) return 'neutral';
+  if(ampel==='GRÜN') return 'im Zielkorridor';
+  if(kat===KAT.HILF) return 'Hilfskraftanteil zu hoch — eliminieren/automatisieren';
+  if(kat===KAT.FACH) return 'Fachkraftanteil zu hoch — delegieren/standardisieren';
+  if(kat===KAT.UNTERNEHMER) return anteil<10?'Unternehmerisch zu niedrig — stärken':(anteil>35?'Unternehmerisch sehr hoch — Steuerung prüfen':'unter Zielkorridor — stärken');
+  if(kat===KAT.MGMT) return anteil<50?'Management zu niedrig':'Managementanteil außerhalb Korridor';
+  if(kat===KAT.VERTRIEB) return anteil<5?'Vertrieb zu niedrig — Akquise intensivieren':(anteil>35?'Vertriebsanteil sehr hoch — Fokus prüfen':'unter Zielkorridor (10–25 %) — stärken');
+  return '';
+}
+
+/* ---------------- Maßnahmen ---------------- */
+function massnahmenText(c){
+  const map={
+    'Eliminieren':'Quelle abstellen; unnötige Schleifen streichen; klare Regeln für Inputs.',
+    'Automatisieren':'Templates + Regeln definieren; Tool/Workflow einrichten; Standardantworten.',
+    'Delegieren':'Übergabecheckliste; Verantwortlichen benennen; Review-Takt festlegen.',
+    'Standardisieren':'SOP/Checkliste; festen Ablauf; klare Verantwortlichkeiten.',
+    'Beibehalten':'Beibehalten — kein Handlungsbedarf.'
+  };
+  return map[c.hebel]||'Maßnahme definieren.';
+}
+function zielrolle(kat){
+  if(kat===KAT.HILF) return 'Hilfskraft/Assistenz';
+  if(kat===KAT.FACH) return 'Fachkraft/Team';
+  if(kat===KAT.MGMT) return 'GF behält / optimiert';
+  if(kat===KAT.UNTERNEHMER) return 'GF (ausbauen)';
+  if(kat===KAT.VERTRIEB) return 'GF / Vertriebsmitarbeiter';
+  return '-';
+}
+function buildMassnahmen(recs){
+  const clusters=byCluster(recs);
+  const order={[KAT.HILF]:0,[KAT.FACH]:1,[KAT.MGMT]:2,[KAT.UNTERNEHMER]:3,[KAT.VERTRIEB]:4,[KAT.PRIVAT]:9};
+  const ampRank={'ROT':0,'GELB':1,'GRÜN':2,'NEUTRAL':3};
+  // Relevante: Hilfs/Fach immer; Management nur bei Überlast (Ampel rot); Unternehmerisch nur wenn Anteil zu niedrig
+  const katAgg=byKategorie(recs);
+  const mgmtRow=katAgg.find(k=>k.kategorie===KAT.MGMT);
+  const untRow=katAgg.find(k=>k.kategorie===KAT.UNTERNEHMER);
+  const vertRow=katAgg.find(k=>k.kategorie===KAT.VERTRIEB);
+  const mgmtUeberlast = mgmtRow && ampelKategorie(KAT.MGMT,mgmtRow.anteil)==='ROT';
+  const untZuNiedrig = untRow && untRow.anteil<20;
+  const vertProblematisch = vertRow && ampelKategorie(KAT.VERTRIEB,vertRow.anteil)!=='GRÜN';
+  let list=clusters.filter(c=>{
+    if(c.kategorie===KAT.HILF||c.kategorie===KAT.FACH) return true;
+    if(c.kategorie===KAT.MGMT) return mgmtUeberlast;
+    if(c.kategorie===KAT.UNTERNEHMER) return untZuNiedrig;
+    if(c.kategorie===KAT.VERTRIEB) return vertProblematisch;
+    return false;
+  });
+  list.sort((a,b)=>
+    (order[a.kategorie]-order[b.kategorie]) ||
+    (ampRank[a.ampel]-ampRank[b.ampel]) ||
+    (b.stunden-a.stunden) ||
+    ((b.del+b.auto)-(a.del+a.auto))
+  );
+  return list;
+}
+
+/* ---------------- UI Rendering ---------------- */
+let clusterSort={key:'stunden',dir:-1};
+
+function refreshAll(){
+  renderStats(); renderAmpel(); renderWeeks(); renderClusters(); renderMassnahmen(); renderRaw(); renderCharts();
+}
+
+function renderStats(){
+  const recs=monthRecords(); const tot=totalHours(recs); const kat=byKategorie(recs);
+  const get=k=>{const r=kat.find(x=>x.kategorie===k);return r?r.anteil:0;};
+  const el=document.getElementById('statCards');
+  if(!recs.length){ el.innerHTML='<div class="card"><div class="k">Einträge im Monat</div><div class="v">0</div></div>'; return; }
+  el.innerHTML=`
+    <div class="card"><div class="k">Erfasste Stunden</div><div class="v">${fmtH(tot)}</div></div>
+    <div class="card"><div class="k">Einträge</div><div class="v">${recs.length}</div></div>
+    <div class="card"><div class="k">Management</div><div class="v">${get(KAT.MGMT)}<small>%</small></div></div>
+    <div class="card"><div class="k">Unternehmerisch</div><div class="v">${get(KAT.UNTERNEHMER)}<small>%</small></div></div>
+    <div class="card"><div class="k">Vertrieb</div><div class="v">${get(KAT.VERTRIEB)}<small>%</small></div></div>
+    <div class="card"><div class="k">Fachkraft</div><div class="v">${get(KAT.FACH)}<small>%</small></div></div>
+    <div class="card"><div class="k">Hilfskraft</div><div class="v">${get(KAT.HILF)}<small>%</small></div></div>`;
+}
+
+function renderAmpel(){
+  const recs=monthRecords(); const kat=byKategorie(recs);
+  const prevKat=byKategorie(prevMonthRecords());
+  const order=[KAT.MGMT,KAT.UNTERNEHMER,KAT.VERTRIEB,KAT.FACH,KAT.HILF,KAT.PRIVAT];
+  const tb=document.querySelector('#ampelTable tbody'); tb.innerHTML='';
+  order.forEach(k=>{
+    const r=kat.find(x=>x.kategorie===k); if(!r) return;
+    const amp=ampelKategorie(k,r.anteil);
+    const pv=prevKat.find(x=>x.kategorie===k);
+    let delta='–';
+    if(pv){ const d=round2(r.anteil-pv.anteil); const arrow=d>0?'▲':(d<0?'▼':'=');
+      delta=`<span style="color:var(--muted)">${arrow} ${Math.abs(d)} pp</span>`; }
+    tb.innerHTML+=`<tr><td>${k}</td><td>${fmtH(r.stunden)}</td><td>${r.anteil}%</td><td>${delta}</td>
+      <td><span class="amp a-${ampClass(amp)}"></span>${amp}</td>
+      <td class="kommentar">${ampelKommentar(k,amp,r.anteil)}</td></tr>`;
+  });
+  if(!tb.innerHTML) tb.innerHTML='<tr><td colspan="6" class="empty">Keine Daten im gewählten Monat.</td></tr>';
+}
+
+function renderWeeks(){
+  const recs=monthRecords(); const w=byWoche(recs);
+  const tb=document.querySelector('#weekTable tbody'); tb.innerHTML='';
+  w.forEach(x=>{ tb.innerHTML+=`<tr><td>KW ${x.kw}</td><td>${x.kategorie}</td><td>${fmtH(x.stunden)}</td></tr>`; });
+  if(!w.length) tb.innerHTML='<tr><td colspan="3" class="empty">Keine Daten.</td></tr>';
+}
+
+function renderClusters(){
+  const recs=monthRecords(); let c=byCluster(recs);
+  const k=clusterSort.key;
+  c.sort((a,b)=>{ let av=a[k],bv=b[k]; if(typeof av==='string'){return clusterSort.dir*av.localeCompare(bv);} return clusterSort.dir*(av-bv);});
+  const tb=document.querySelector('#clusterTable tbody'); tb.innerHTML='';
+  c.forEach(x=>{ tb.innerHTML+=`<tr>
+    <td>${x.taetigkeit}${x.vorlaeufig?' <span class="pill">vorläufig</span>':''}</td>
+    <td>${katShort(x.kategorie)}</td><td>${fmtH(x.stunden)}</td><td>${x.anteil}%</td>
+    <td>${x.del}</td><td>${x.auto}</td><td>${x.hebel}</td>
+    <td><span class="amp a-${ampClass(x.ampel)}"></span>${x.ampel}</td><td>${x.rang}</td></tr>`; });
+  if(!c.length) tb.innerHTML='<tr><td colspan="9" class="empty">Keine Daten.</td></tr>';
+}
+
+function statusKey(c){ return selectedMonth()+'|'+c.taetigkeit; }
+function getStatus(c){ return massStatus[statusKey(c)]||'offen'; }
+function setStatus(key,val){ massStatus[key]=val; saveAll(); renderMassnahmen(); }
+function statusSelect(c){
+  const cur=getStatus(c); const opts=[['offen','offen'],['umsetzung','in Umsetzung'],['erledigt','erledigt']];
+  return `<select onchange="setStatus('${statusKey(c).replace(/'/g,"")}',this.value)">`+
+    opts.map(([v,l])=>`<option value="${v}"${v===cur?' selected':''}>${l}</option>`).join('')+`</select>`;
+}
+
+function renderMassnahmen(){
+  const recs=monthRecords(); const list=buildMassnahmen(recs);
+  const el=document.getElementById('massnahmenList');
+  if(!list.length){ el.innerHTML='<div class="empty">Keine Fehlallokation erkannt — oder keine Daten im Monat.</div>'; return; }
+  el.innerHTML=list.map((c,i)=>{
+    const st=getStatus(c); const done=st==='erledigt';
+    return `<div class="massnahme border-${ampClass(c.ampel).toLowerCase()}" style="${done?'opacity:.55':''}">
+      <div class="t">${i+1}. ${c.taetigkeit} <span class="pill">${katShort(c.kategorie)}</span>
+        <span class="amp a-${ampClass(c.ampel)}"></span>${c.ampel}</div>
+      <div class="m">${massnahmenText(c)}</div>
+      <div class="meta">
+        <span>Hebel: <b>${c.hebel}</b></span><span>Zielrolle: ${zielrolle(c.kategorie)}</span>
+        <span>Aufwand: ${fmtH(c.stunden)} (${c.anteil}%)</span>
+        <span>Del.: ${c.del} · Auto.: ${c.auto}</span>
+        <span>Status: ${statusSelect(c)}</span>
+      </div></div>`;}).join('');
+}
+
+function katSelect(id,val){
+  const opts=[KAT.MGMT,KAT.UNTERNEHMER,KAT.VERTRIEB,KAT.FACH,KAT.HILF,KAT.PRIVAT];
+  return `<select onchange="editRec('${id}','kategorie',this.value)">`+
+    opts.map(o=>`<option value="${o}"${o===val?' selected':''}>${katShort(o)}</option>`).join('')+`</select>`;
+}
+function hebelSelect(id,val){
+  return `<select onchange="editRec('${id}','hebel',this.value)">`+
+    HEBEL.map(o=>`<option${o===val?' selected':''}>${o}</option>`).join('')+`</select>`;
+}
+function flag(id,field,val){ return `<a class="dl" href="#" onclick="editRec('${id}','${field}',${val?0:1});return false">${val}</a>`; }
+
+function renderRaw(){
+  const tb=document.querySelector('#rawTable tbody'); tb.innerHTML='';
+  const sorted=[...records].sort((a,b)=>a.datum<b.datum?1:-1);
+  sorted.forEach(r=>{ tb.innerHTML+=`<tr>
+    <td>${r.datum}</td>
+    <td><span contenteditable onblur="editRec('${r.id}','taetigkeit',this.textContent.trim())">${r.taetigkeit}</span>${r.vorlaeufig?' <span class="pill">vorl.</span>':''}${r.quelle==='sprache'?' <span class="pill">🎤</span>':''}</td>
+    <td>${katSelect(r.id,r.kategorie)}</td><td>${r.minuten}</td><td>${r.stunden}</td>
+    <td>${flag(r.id,'del',r.del)}</td><td>${flag(r.id,'auto',r.auto)}</td><td>${hebelSelect(r.id,r.hebel)}</td>
+    <td><a class="dl" href="#" onclick="delRec('${r.id}');return false">löschen</a></td></tr>`; });
+  if(!records.length) tb.innerHTML='<tr><td colspan="9" class="empty">Noch keine Einträge.</td></tr>';
+}
+function editRec(id,field,value){
+  const r=records.find(x=>x.id===id); if(!r) return;
+  r[field]=value;
+  if(field==='kategorie'){ r.cluster=r.taetigkeit; learnCluster(r.taetigkeit, r.taetigkeit, value); }
+  if(field==='taetigkeit'){ r.cluster=value; }
+  r.vorlaeufig=false; r.konfidenz=1;   // manuelle Korrektur = bestätigt
+  saveAll(); refreshAll();
+}
+function delRec(id){ records=records.filter(r=>r.id!==id); saveAll(); refreshAll(); }
+
+/* ---------------- Charts ---------------- */
+const KAT_COLORS={[KAT.MGMT]:'#6366f1',[KAT.UNTERNEHMER]:'#34d399',[KAT.VERTRIEB]:'#f97316',[KAT.FACH]:'#fbbf24',[KAT.HILF]:'#fb7185',[KAT.PRIVAT]:'#7c89ad'};
+function renderCharts(){
+  const recs=monthRecords();
+  const kat=byKategorie(recs), clu=byCluster(recs), wk=byWoche(recs);
+  Object.values(charts).forEach(c=>c&&c.destroy()); charts={};
+  Chart.defaults.color='#9aa7c7'; Chart.defaults.font.size=11; Chart.defaults.font.family='Inter';
+  Chart.defaults.borderColor='rgba(255,255,255,.08)';
+
+  charts.kat=new Chart(document.getElementById('cKat'),{type:'doughnut',
+    data:{labels:kat.map(k=>katShort(k.kategorie)),datasets:[{data:kat.map(k=>k.stunden),
+      backgroundColor:kat.map(k=>KAT_COLORS[k.kategorie]||'#888'),borderColor:'#0f1a14',borderWidth:2}]},
+    options:{plugins:{legend:{position:'bottom'}}}});
+
+  const top=clu.slice(0,10);
+  charts.top=new Chart(document.getElementById('cTop'),{type:'bar',
+    data:{labels:top.map(c=>c.taetigkeit),datasets:[{label:'Stunden',data:top.map(c=>c.stunden),borderRadius:5,
+      backgroundColor:top.map(c=>KAT_COLORS[c.kategorie]||'#888')}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Stunden'}}}}});
+
+  const weeks=[...new Set(wk.map(w=>w.kw))].sort((a,b)=>a-b);
+  const kats=[KAT.MGMT,KAT.UNTERNEHMER,KAT.VERTRIEB,KAT.FACH,KAT.HILF,KAT.PRIVAT];
+  charts.mix=new Chart(document.getElementById('cMix'),{type:'bar',
+    data:{labels:weeks.map(w=>'KW '+w),datasets:kats.map(k=>({label:katShort(k),
+      data:weeks.map(w=>{const f=wk.find(x=>x.kw===w&&x.kategorie===k);return f?f.stunden:0;}),
+      backgroundColor:KAT_COLORS[k]}))},
+    options:{plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true},y:{stacked:true,title:{display:true,text:'Stunden'}}}}});
+
+  let cum=0; const tot=totalHours(recs)||1; const par=clu.slice(0,12);
+  const cumData=par.map(c=>{cum+=c.stunden;return round2(cum/tot*100);});
+  charts.par=new Chart(document.getElementById('cPareto'),{
+    data:{labels:par.map(c=>c.taetigkeit),datasets:[
+      {type:'bar',label:'Stunden',data:par.map(c=>c.stunden),backgroundColor:'#22c55e',borderRadius:4,yAxisID:'y'},
+      {type:'line',label:'kumuliert %',data:cumData,borderColor:'#fb7185',backgroundColor:'#fb7185',yAxisID:'y1',tension:.3}]},
+    options:{plugins:{legend:{position:'bottom'}},scales:{
+      y:{position:'left',title:{display:true,text:'Stunden'}},
+      y1:{position:'right',min:0,max:100,grid:{drawOnChartArea:false},title:{display:true,text:'%'}}}}});
+}
+
+/* ---------------- Export: Excel ---------------- */
+function exportExcel(){
+  const recs=monthRecords();
+  if(!recs.length){ botMsg('Keine Daten im gewählten Monat — Export abgebrochen.'); return; }
+  const m=selectedMonth(); const [yy,mm]=m.split('-');
+  const monName=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'][+mm-1];
+  const kat=byKategorie(recs), clu=byCluster(recs), wk=byWoche(recs), mass=buildMassnahmen(recs);
+  const wb=XLSX.utils.book_new();
+
+  const s1=[['Datum','Tätigkeit','Kategorie','Zeit (Minuten)','Zeit (Stunden)','Delegierbarkeit','Automatisierbarkeit','Hebel']];
+  [...recs].sort((a,b)=>a.datum<b.datum?-1:1).forEach(r=>s1.push([r.datum,r.taetigkeit,r.kategorie,r.minuten,r.stunden,r.del,r.auto,r.hebel]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s1),'1_Rohdaten');
+
+  const s2=[['Tätigkeit (Cluster)','Kategorie','Gesamtstunden','Anteil an Gesamtzeit (%)','Delegierbarkeit','Automatisierbarkeit','Hebel','Ampel (Tätigkeit)','Rang nach Zeitaufwand']];
+  clu.forEach(c=>s2.push([c.taetigkeit,c.kategorie,c.stunden,c.anteil,c.del,c.auto,c.hebel,c.ampel,c.rang]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s2),'2_Tätigkeiten');
+
+  const s3=[['Kategorie','Gesamtstunden','Anteil (%)','Ampel (Kategorie)']];
+  kat.forEach(k=>s3.push([k.kategorie,k.stunden,k.anteil,ampelKategorie(k.kategorie,k.anteil)]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s3),'3_Kategorien');
+
+  const s4=[['Kategorie','Stunden','Anteil (%)','Ampel','Kommentar']];
+  kat.forEach(k=>{const a=ampelKategorie(k.kategorie,k.anteil);s4.push([k.kategorie,k.stunden,k.anteil,a,ampelKommentar(k.kategorie,a,k.anteil)]);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s4),'4_Ampel_Übersicht');
+
+  const STLAB={offen:'offen',umsetzung:'in Umsetzung',erledigt:'erledigt'};
+  const s5=[['Tätigkeit','Kategorie','Zeitaufwand (Stunden)','Delegierbarkeit','Automatisierbarkeit','Hebel','Ampel (Tätigkeit)','Zielrolle','Konkrete Maßnahme','Status']];
+  mass.forEach(c=>s5.push([c.taetigkeit,c.kategorie,c.stunden,c.del,c.auto,c.hebel,c.ampel,zielrolle(c.kategorie),massnahmenText(c),STLAB[getStatus(c)]]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s5),'5_Fehlallokation');
+
+  const s6=[['KW','Kategorie','Stunden']];
+  wk.forEach(w=>s6.push([w.kw,w.kategorie,w.stunden]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s6),'6_Wochenübersicht');
+
+  const s7=[['Kategorie','Ampel','Schwelle'],
+    ['Hilfskrafttätigkeit','GRÜN','0–1 %'],['Hilfskrafttätigkeit','GELB','>1–5 %'],['Hilfskrafttätigkeit','ROT','>5 %'],
+    ['Fachkrafttätigkeit','GRÜN','0–5 %'],['Fachkrafttätigkeit','GELB','>5–10 %'],['Fachkrafttätigkeit','ROT','>10 %'],
+    ['Unternehmerisch','GRÜN','20–35 %'],['Unternehmerisch','GELB','10–20 %'],['Unternehmerisch','ROT','<10 % oder >35 %'],
+    ['Geschäftsführung / Management','GRÜN','60–80 %'],['Geschäftsführung / Management','GELB','50–60 % oder 80–90 %'],
+    ['Geschäftsführung / Management','ROT','<50 % oder >90 %'],['Privat','NEUTRAL','keine Bewertung']];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s7),'7_Einstellungen_Ampel');
+
+  const s8=[['Charts – '+monName+' '+yy],[ ],
+    ['Hinweis: Diagramme als PNG im ZIP „Charts_'+monName+'_'+yy+'.zip“ (Button „Charts-ZIP“).'],
+    ['Enthalten: Kategorie-Anteile · Top-10 Tätigkeiten · Kategorie-Mix (Woche) · Pareto.']];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s8),'8_Charts');
+
+  XLSX.writeFile(wb,`Zeitreport_${monName}_${yy}.xlsx`);
+  botMsg(`Excel erstellt: Zeitreport_${monName}_${yy}.xlsx (8 Sheets).`);
+}
+
+/* ---------------- Export: Charts ZIP ---------------- */
+async function exportChartsZip(){
+  const recs=monthRecords();
+  if(!recs.length){ botMsg('Keine Daten — Charts-Export abgebrochen.'); return; }
+  switchView('charts'); await new Promise(r=>setTimeout(r,350));
+  const m=selectedMonth(); const [yy,mm]=m.split('-');
+  const monName=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'][+mm-1];
+  const zip=new JSZip();
+  const items=[['cKat','Kategorie_Anteile'],['cTop','Top10_Taetigkeiten'],['cMix','Kategorie_Mix_Woche'],['cPareto','Pareto_Taetigkeiten']];
+  for(const [id,name] of items){
+    const cv=document.getElementById(id);
+    const data=cv.toDataURL('image/png').split(',')[1];
+    zip.file(`${name}_${monName}_${yy}.png`,data,{base64:true});
+  }
+  const blob=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`Charts_${monName}_${yy}.zip`; a.click();
+  botMsg(`Charts-ZIP erstellt: Charts_${monName}_${yy}.zip (4 PNG).`);
+}
+
+/* ---------------- JSON Im-/Export ---------------- */
+function exportJson(){
+  const blob=new Blob([JSON.stringify(records,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zeitdaten.json'; a.click();
+}
+function importJson(file){
+  const r=new FileReader();
+  r.onload=e=>{ try{ const d=JSON.parse(e.target.result);
+    if(Array.isArray(d)){ records=d; saveAll(); refreshAll(); botMsg('Importiert: '+d.length+' Einträge.'); }
+  }catch(err){ alert('Datei konnte nicht gelesen werden.'); } };
+  r.readAsText(file);
+}
+
+/* ---------------- Helpers / UI ---------------- */
+function fmtH(h){ return (Math.round(h*100)/100).toString().replace('.',',')+' h'; }
+function katShort(k){ return k===KAT.MGMT?'Management':k===KAT.UNTERNEHMER?'Unternehmerisch':k===KAT.VERTRIEB?'Vertrieb':k===KAT.FACH?'Fachkraft':k===KAT.HILF?'Hilfskraft':'Privat'; }
+function ampClass(a){ return a==='GRÜN'?'GRÜN':a; }
+
+function botMsg(t){ addMsg('bot',t); if(speakOut) speak(t); }
+function speak(t){
+  if(!('speechSynthesis' in window)) return;
+  try{ const u=new SpeechSynthesisUtterance(t.replace(/[•·]/g,', ')); u.lang='de-DE'; u.rate=1.05;
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }catch(e){}
+}
+function addMsg(role,t){
+  const c=document.getElementById('chat');
+  const d=document.createElement('div'); d.className='msg '+role;
+  d.innerHTML=`<div class="bubble">${t.replace(/</g,'&lt;')}</div>`;
+  c.appendChild(d); c.scrollTop=c.scrollHeight;
+}
+
+/* Satz in mehrere Tätigkeits-Segmente zerlegen */
+function splitSegments(text){
+  // an Konnektoren / Semikolon / Aufzählungs-Komma vor Zeit-/Tätigkeitswechsel trennen
+  let parts = text.split(/\s*;\s*|\s*,?\s*(?:danach|anschließend|anschliessend|dann|außerdem|ausserdem|sowie|und dann|im anschluss)\s+/i);
+  parts = parts.map(p=>p.trim()).filter(p=>p.length>1);
+  return parts.length?parts:[text];
+}
+
+function processInput(text){
+  text=text.trim(); if(!text) return;
+  addMsg('user',text);
+  if(handleTrigger(text)) return;
+  if(pending && pending.await){ applyAnswer(text); return; }
+  const segs = splitSegments(text);
+  // erstes Segment sofort, Rest in die Queue
+  pendingQueue = segs.slice(1);
+  if(segs.length>1) addMsg('sys', segs.length+' Tätigkeiten erkannt — werden nacheinander erfasst.');
+  startEntry(segs[0]);
+}
+
+function drainQueue(){
+  if(pendingQueue.length){
+    const next = pendingQueue.shift();
+    startEntry(next);
+  }
+}
+
+function switchView(v){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.view===v));
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
+  if(v!=='erfassung') refreshAll();
+}
+
+/* ---------------- Spracheingabe ---------------- */
+let recog=null, recording=false;
+function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ document.getElementById('micBtn').title='Spracheingabe in diesem Browser nicht verfügbar'; return; }
+  recog=new SR(); recog.lang='de-DE'; recog.interimResults=false; recog.continuous=false;
+  recog.onresult=e=>{ const txt=e.results[0][0].transcript; document.getElementById('entry').value=txt; };
+  recog.onend=()=>{ recording=false; document.getElementById('micBtn').classList.remove('rec');
+    const v=document.getElementById('entry').value.trim(); if(v){ inputSource='sprache'; processInput(v); document.getElementById('entry').value=''; } };
+  recog.onerror=()=>{ recording=false; document.getElementById('micBtn').classList.remove('rec'); };
+}
+function toggleMic(){
+  if(!recog){ alert('Spracheingabe wird in diesem Browser nicht unterstützt. Bitte Chrome/Edge nutzen.'); return; }
+  if(recording){ recog.stop(); return; }
+  recording=true; document.getElementById('micBtn').classList.add('rec'); recog.start();
+}
+
+/* ---------------- Handy-Sync (jsonblob.com) ---------------- */
+const SYNC_API = 'https://jsonblob.com/api/jsonBlob';
+
+async function syncUpload(){
+  const btn = document.getElementById('syncSendBtn');
+  const display = document.getElementById('syncCodeDisplay');
+  const hint = document.getElementById('syncCodeHint');
+  const qrWrap = document.getElementById('syncQrWrap');
+  const qrEl = document.getElementById('syncQrCode');
+  if(!records.length){ alert('Noch keine Daten vorhanden.'); return; }
+  btn.disabled = true; btn.textContent = '⏳ Wird hochgeladen…';
+  try{
+    const res = await fetch(SYNC_API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body: JSON.stringify(records)
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const loc = res.headers.get('Location') || '';
+    const blobId = loc.split('/').pop();
+    if(!blobId) throw new Error('Keine ID erhalten');
+    localStorage.setItem('unternehmerzeit_syncid_v1', blobId);
+
+    // QR-Code erzeugen
+    qrEl.innerHTML = '';
+    const qrText = blobId;
+    try{
+      new QRCode(qrEl, {text: qrText, width:180, height:180, colorDark:'#000', colorLight:'#fff'});
+    }catch(e){ qrEl.textContent = blobId; }
+
+    display.textContent = blobId;
+    hint.textContent = '✓ Gültig für ca. 30 Min – QR scannen oder ID unten eingeben';
+    hint.style.color = 'var(--gruen)';
+    qrWrap.style.display = 'block';
+  }catch(e){
+    hint.textContent = '❌ Fehler: '+e.message;
+    hint.style.color = 'var(--rot)';
+  }finally{
+    btn.disabled = false; btn.textContent = '🔼 Daten hochladen & QR-Code erzeugen';
+  }
+}
+
+async function syncDownload(){
+  const input = document.getElementById('syncCodeInput');
+  const status = document.getElementById('syncStatus');
+  const blobId = input.value.trim();
+  if(!blobId){ status.textContent = 'Bitte Blob-ID eingeben.'; return; }
+  status.textContent = '⏳ Lade Daten…'; status.style.color = 'var(--muted)';
+  try{
+    const res = await fetch(SYNC_API+'/'+blobId, {
+      headers:{'Accept':'application/json'}
+    });
+    if(!res.ok) throw new Error('ID nicht gefunden oder abgelaufen.');
+    const data = await res.json();
+    if(!Array.isArray(data)) throw new Error('Ungültige Daten.');
+    if(records.length && !confirm('Bestehende Daten ('+records.length+' Einträge) ersetzen durch '+data.length+' importierte Einträge?')) return;
+    records = data; saveAll(); refreshAll();
+    status.textContent = '✓ '+data.length+' Einträge importiert!';
+    status.style.color = 'var(--gruen)';
+    setTimeout(()=>document.getElementById('syncModal').classList.remove('open'), 2000);
+  }catch(e){
+    status.textContent = '❌ '+e.message;
+    status.style.color = 'var(--rot)';
+  }
+}
+
+function openSyncModal(){
+  document.getElementById('syncModal').classList.add('open');
+  document.getElementById('syncQrWrap').style.display = 'none';
+  document.getElementById('syncQrCode').innerHTML = '';
+  document.getElementById('syncCodeDisplay').textContent = '––';
+  document.getElementById('syncCodeHint').textContent = '→ Button drücken, dann QR-Code mit Handy scannen';
+  document.getElementById('syncCodeHint').style.color = 'var(--muted)';
+  document.getElementById('syncCodeInput').value = '';
+  document.getElementById('syncStatus').textContent = '';
+}
+
+/* ---------------- Init ---------------- */
+function init(){
+  loadLocal();
+  initSpeech();
+  document.getElementById('monthSel').value=iso(new Date()).slice(0,7);
+
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
+  document.getElementById('sendBtn').onclick=()=>{ const v=document.getElementById('entry').value; processInput(v); document.getElementById('entry').value=''; };
+  document.getElementById('entry').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); document.getElementById('sendBtn').click(); }});
+  document.getElementById('micBtn').onclick=toggleMic;
+  document.getElementById('speakToggle').onchange=e=>{ speakOut=e.target.checked; };
+  document.getElementById('connectFolder').onclick=connectFolder;
+  document.getElementById('openSyncModal').onclick=openSyncModal;
+  document.getElementById('syncModalClose').onclick=()=>document.getElementById('syncModal').classList.remove('open');
+  document.getElementById('syncSendBtn').onclick=syncUpload;
+  document.getElementById('syncReceiveBtn').onclick=syncDownload;
+  document.getElementById('syncModal').addEventListener('click',e=>{ if(e.target===document.getElementById('syncModal')) document.getElementById('syncModal').classList.remove('open'); });
+  document.getElementById('syncCodeDisplay').onclick=()=>{ navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('syncCodeDisplay').textContent); };
+  document.getElementById('monthSel').onchange=refreshAll;
+  document.getElementById('exportXlsx').onclick=exportExcel;
+  document.getElementById('exportZip').onclick=exportChartsZip;
+  document.getElementById('exportZip2').onclick=exportChartsZip;
+  document.getElementById('exportJson').onclick=exportJson;
+  document.getElementById('importJson').onclick=()=>document.getElementById('fileInput').click();
+  document.getElementById('fileInput').onchange=e=>{ if(e.target.files[0]) importJson(e.target.files[0]); };
+  document.querySelectorAll('.quick button').forEach(b=>b.onclick=()=>processInput(b.dataset.q));
+  document.querySelectorAll('#clusterTable th[data-s]').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.s; clusterSort.dir = (clusterSort.key===k)? -clusterSort.dir : -1; clusterSort.key=k; renderClusters();
+  });
+
+  botMsg('Bereit. Beschreibe eine Tätigkeit — z. B. „Angebote erstellt, ca. zwei Stunden, Fachkraft.“\nTrigger wie „Monatsauswertung als Excel“ funktionieren jederzeit.');
+  refreshAll();
+}
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
